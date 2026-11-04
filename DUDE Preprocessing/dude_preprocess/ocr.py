@@ -174,11 +174,25 @@ def _add_token(
 def _is_due(obj: Any) -> bool:
     if not isinstance(obj, dict):
         return False
+
     pages = obj.get("pages")
     if isinstance(pages, list) and pages and isinstance(pages[0], dict):
         return "tokens" in pages[0] or "dimensions" in pages[0]
-    return "tokens" in obj and ("pages" in obj or "metadata" in obj)
 
+    tokens = obj.get("tokens")
+    structures = obj.get("structures") or {}
+    page_structure = structures.get("pages") if isinstance(structures, dict) else None
+
+    if (
+        isinstance(tokens, list)
+        and tokens
+        and isinstance(tokens[0], str)
+        and isinstance(page_structure, dict)
+        and "structure_value" in page_structure
+    ):
+        return True
+
+    return "tokens" in obj and ("pages" in obj or "metadata" in obj)
 
 def _parse_due(obj: dict) -> tuple[dict[int, tuple[float, float]], list[Token]]:
     dims: dict[int, tuple[float, float]] = {}
