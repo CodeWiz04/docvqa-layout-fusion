@@ -198,36 +198,119 @@ def _parse_due(obj: dict) -> tuple[dict[int, tuple[float, float]], list[Token]]:
     dims: dict[int, tuple[float, float]] = {}
     tokens: list[Token] = []
 
+    raw_tokens = obj.get("tokens")
+    structures = obj.get("structures") or {}
+    page_structure = structures.get("pages") if isinstance(structures, dict) else None
+
+    # DUDE flat DUE format
+    if (
+        isinstance(raw_tokens, list)
+        and raw_tokens
+        and isinstance(raw_tokens[0], str)
+        and isinstance(page_structure, dict)
+    ):
+        ranges = page_structure.get("structure_value") or []
+        page_positions = page_structure.get("positions") or []
+        positions = obj.get("positions") or []
+        scores = obj.get("scores") or []
+
+        for page_idx, token_range in enumerate(ranges):
+            if not isinstance(token_range, (list, tuple)) or len(token_range) < 2:
+                continue
+
+            start, end = int(token_range[0]), int(token_range[1])
+
+            if page_idx < len(page_positions):
+                page_box = page_positions[page_idx]
+
+                if isinstance(page_box, (list, tuple)) and len(page_box) >= 4:
+                    top, left, bottom, right = map(float, page_box[:4])
+                    width = right - left
+                    height = bottom - top
+
+                    if width > 0 and height > 0:
+                        dims[page_idx] = (width, height)
+
+            for i in range(max(0, start), min(end, len(raw_tokens))):
+                text = raw_tokens[i]
+
+                if not isinstance(text, str) or not text.strip():
+                    continue
+
+                box = None
+
+                if i < len(positions):
+                    pos = positions[i]
+
+                    if isinstance(pos, (list, tuple)) and len(pos) >= 4:
+                        x1, y1, x2, y2 = map(float, pos[:4])
+
+                        bbox = [
+                            x1,
+                            y1,
+                            x2 - x1,
+                            y2 - y1,
+                        ]
+
+                        box = (round_bbox(*bbox), False)
+
+                confidence = None
+                if i < len(scores) and isinstance(scores[i], (int, float)):
+                    confidence = float(scores[i])
+
+                _add_token(tokens, text, page_idx, box, confidence)
+
+        return dims, tokens
+
+    # Existing nested DUE format
     pages = obj.get("pages")
+
     if isinstance(pages, list) and pages:
         for i, page in enumerate(pages):
             if not isinstance(page, dict):
                 continue
+
             idx = page.get("id", page.get("page", i))
             idx = int(idx) if isinstance(idx, (int, float)) else i
+
             d = page.get("dimensions") or {}
             w = d.get("width") or page.get("width")
             h = d.get("height") or page.get("height")
+
             if w and h:
                 dims[idx] = (float(w), float(h))
+
             for tok in page.get("tokens") or page.get("text_blocks") or page.get("words") or []:
                 if not isinstance(tok, dict):
                     continue
+
                 text = _text_of(tok)
                 if not text:
                     continue
+
                 t_page = tok.get("page", idx)
                 t_page = int(t_page) if isinstance(t_page, (int, float)) else idx
+
                 _add_token(tokens, text, t_page, _box_of(tok), _confidence_of(tok))
+
     else:
         meta = obj.get("metadata") or {}
         d = obj.get("dimensions") or meta.get("dimensions") or {}
+
         if d.get("width") and d.get("height"):
             dims[0] = (float(d["width"]), float(d["height"]))
+
         for tok in obj.get("tokens") or []:
             if not isinstance(tok, dict) or not _text_of(tok):
                 continue
-            _add_token(tokens, _text_of(tok) or "", int(tok.get("page", 0)), _box_of(tok), _confidence_of(tok))
+
+            _add_token(
+                tokens,
+                _text_of(tok) or "",
+                int(tok.get("page", 0)),
+                _box_of(tok),
+                _confidence_of(tok),
+            )
 
     return dims, tokens
 
