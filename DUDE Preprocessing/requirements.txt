@@ -1,0 +1,15 @@
+# Core (PyMuPDF renders PDF pages and also reads page sizes for --documents probe)
+pymupdf>=1.24,<2
+# JPEG page encoding
+pillow>=10.0
+# Progress bars
+tqdm>=4.66
+# Optional YAML config for `build --config`
+pyyaml>=6.0
+
+# Optional fallbacks:
+#   pdf2image + poppler  (if you cannot use PyMuPDF)
+#   pypdf                (page sizes when rendering with pdf2image)
+#   pytest               (to run the test-suite)
+
+# Python 3.10 or newer is required.

@@ -1,0 +1,29 @@
+# Example configuration for `python -m dude_preprocess build --config config.example.yaml`
+# Every key matches the long CLI flag name (dashes or underscores both work).
+# CLI flags override values from this file.
+
+data-dir: D:/data/DUDE_train-val-test_binaries
+annotations: D:/data/2023-03-23_DUDE_gt_test_PUBLIC.json
+out-dir: data/dude_processed
+
+splits: [train, val, test]
+
+# render = page images, probe = page sizes only, none = ignore PDFs
+documents: render
+dpi: 200
+image-format: jpeg
+jpeg-quality: 85
+# downscale pages longer than this (0 = keep full resolution)
+max-side: 3000
+
+# OCR source: folder name under OCR/ and the dump flavour
+ocr-engine: Amazon
+ocr-format: due          # due | original
+ocr-adapter: auto        # auto | due | azure | textract | generic | none
+lowercase-ocr: false
+
+# 0 = one process per CPU (max 8)
+workers: 8
+# 0 = all documents
+limit-docs: 0
+inline-ocr: false
